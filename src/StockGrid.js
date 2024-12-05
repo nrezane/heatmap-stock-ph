@@ -10,7 +10,8 @@ const apiUrls = [
   'https://phisix-api3.appspot.com/stocks/DDMPR.json',
   'https://phisix-api3.appspot.com/stocks/FILRT.json',
   'https://phisix-api3.appspot.com/stocks/VREIT.json',
-  'https://phisix-api3.appspot.com/stocks/PREIT.json'
+  'https://phisix-api3.appspot.com/stocks/PREIT.json',
+  'https://phisix-api3.appspot.com/stocks/TEL.json'
 ];
 
 function StockGrid() {
