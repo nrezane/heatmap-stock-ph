@@ -23,19 +23,23 @@ function StockGrid() {
         const responses = await Promise.all(apiUrls.map(url => fetch(url)));
         const data = await Promise.all(responses.map(r => r.json()));
 
-        // Process stocks safely
         const validStocks = data
           .map((item, i) => {
-            if (!item || !item.stock || !item.stock[0]) {
+            const entry =
+              item.stock?.[0] ??
+              item.stocks?.[0] ??
+              null;
+
+            if (!entry) {
               console.warn("Invalid data from:", apiUrls[i], item);
               return null;
             }
-            return item;
+
+            return { entry, as_of: item.as_of };
           })
           .filter(Boolean);
 
-        setStocks(validStocks.map(item => item.stock[0]));
-
+        setStocks(validStocks.map(item => item.entry));
         if (validStocks.length > 0) {
           setAsOf(validStocks[0].as_of);
         }
@@ -53,7 +57,6 @@ function StockGrid() {
   return (
     <div className="max-w-4xl mx-auto my-8">
       <h1 className="text-3xl font-bold text-center mb-2">Stock Heat Map</h1>
-
       {formattedDate && (
         <p className="text-center text-gray-500 mb-6">
           Last updated: {formattedDate}
@@ -74,7 +77,7 @@ function StockGrid() {
             >
               <h2 className="text-xl">{stock.name}</h2>
               <p>Price: {currentPrice.toFixed(2)} PHP</p>
-              <p>Start of Day Price: {startOfDayPrice.toFixed(2)} PHP</p>
+              <p>Start of Day: {startOfDayPrice.toFixed(2)} PHP</p>
               <p>Change: {percentChange.toFixed(2)}%</p>
             </div>
           );
