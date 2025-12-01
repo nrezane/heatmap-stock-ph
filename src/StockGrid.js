@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 
-// List of stock API URLs
 const apiUrls = [
   'https://phisix-api3.appspot.com/stocks/LTG.json',
   'https://phisix-api3.appspot.com/stocks/AREIT.json',
@@ -16,42 +15,55 @@ const apiUrls = [
 
 function StockGrid() {
   const [stocks, setStocks] = useState([]);
-  const [asOf, setAsOf] = useState(null); // State to store the `as_of` date
+  const [asOf, setAsOf] = useState(null);
 
   useEffect(() => {
     const fetchAllStockData = async () => {
       try {
         const responses = await Promise.all(apiUrls.map(url => fetch(url)));
-        const data = await Promise.all(responses.map(response => response.json()));
+        const data = await Promise.all(responses.map(r => r.json()));
 
-        // Set the stock data and `as_of` date from the first response
-        setStocks(data.map(stock => stock.stock[0]));
-        setAsOf(data[0].as_of); // Assuming `as_of` is the same across all responses
+        // Process stocks safely
+        const validStocks = data
+          .map((item, i) => {
+            if (!item || !item.stock || !item.stock[0]) {
+              console.warn("Invalid data from:", apiUrls[i], item);
+              return null;
+            }
+            return item;
+          })
+          .filter(Boolean);
+
+        setStocks(validStocks.map(item => item.stock[0]));
+
+        if (validStocks.length > 0) {
+          setAsOf(validStocks[0].as_of);
+        }
+
       } catch (error) {
-        console.error('Error fetching stock data:', error);
+        console.error("Error fetching stock data:", error);
       }
     };
 
     fetchAllStockData();
   }, []);
 
-  // Convert `as_of` to a readable date format
   const formattedDate = asOf ? new Date(asOf).toLocaleString() : '';
 
   return (
     <div className="max-w-4xl mx-auto my-8">
       <h1 className="text-3xl font-bold text-center mb-2">Stock Heat Map</h1>
-      {/* {formattedDate && (
+
+      {formattedDate && (
         <p className="text-center text-gray-500 mb-6">
           Last updated: {formattedDate}
         </p>
-      )} */}
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {stocks.map((stock, index) => {
           const currentPrice = stock.price.amount;
           const percentChange = stock.percent_change;
-
-          // Calculate start-of-day price
           const startOfDayPrice = currentPrice / (1 + percentChange / 100);
 
           return (
