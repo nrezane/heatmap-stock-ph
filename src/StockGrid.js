@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 
-// List of stock API URLs
 const apiUrls = [
   'https://phisix-api3.appspot.com/stocks/LTG.json',
   'https://phisix-api3.appspot.com/stocks/AREIT.json',
@@ -19,47 +18,50 @@ function StockGrid() {
   const [asOf, setAsOf] = useState(null);
 
   useEffect(() => {
-    const fetchAllStockData = async () => {
+    const fetchAllStocks = async () => {
       try {
         const responses = await Promise.all(apiUrls.map(url => fetch(url)));
-        const data = await Promise.all(responses.map(r => r.json()));
+        const jsonData = await Promise.all(responses.map(r => r.json()));
 
-        const validStocks = data
-          .map((item, i) => {
-            // handle both API formats
-            const entry =
-              item.stock?.[0] ??
-              item.stocks?.[0] ??
-              null;
+        const cleaned = jsonData
+          .map((data, i) => {
+            const entry = data?.stocks?.[0];
+            if (!entry) return null;
 
-            if (!entry) {
-              console.warn("Invalid data from:", apiUrls[i], item);
+            const currentPrice = Number(entry.price?.amount);
+            const percentChange = Number(entry.percentChange);
+
+            if (!Number.isFinite(currentPrice) || !Number.isFinite(percentChange)) {
+              console.warn("Invalid data:", apiUrls[i], entry);
               return null;
             }
 
-            return { entry, as_of: item.as_of };
+            return {
+              name: entry.name,
+              price: currentPrice,
+              percentChange,
+              asOf: data.as_of
+            };
           })
           .filter(Boolean);
 
-        setStocks(validStocks.map(s => s.entry));
+        setStocks(cleaned);
 
-        if (validStocks.length > 0) {
-          setAsOf(validStocks[0].as_of);
-        }
+        if (cleaned.length > 0) setAsOf(cleaned[0].asOf);
 
-      } catch (error) {
-        console.error("Error fetching stock data:", error);
+      } catch (e) {
+        console.error("Error fetching API:", e);
       }
     };
 
-    fetchAllStockData();
+    fetchAllStocks();
   }, []);
 
   const formattedDate = asOf ? new Date(asOf).toLocaleString() : '';
 
   return (
     <div className="max-w-5xl mx-auto my-8 px-4">
-      <h1 className="text-3xl font-bold text-center mb-2">Stock Heat Map</h1>
+      <h1 className="text-3xl font-bold text-center mb-2">Stock Heatmap</h1>
 
       {formattedDate && (
         <p className="text-center text-gray-500 mb-6">
@@ -68,50 +70,20 @@ function StockGrid() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {stocks.map((stock, index) => {
-
-          // --- SAFETY CHECKS ---
-          if (!stock || !stock.price || stock.percent_change == null) {
-            return (
-              <div
-                key={index}
-                className="p-4 rounded-lg bg-gray-400 text-white text-center font-semibold shadow-lg"
-              >
-                <h2 className="text-xl">{stock?.name ?? "Unknown Stock"}</h2>
-                <p>Invalid or missing price data</p>
-              </div>
-            );
-          }
-
-          const currentPrice = stock?.price?.amount;
-          const percentChange = stock?.percent_change;
-
-          // skip invalid numbers
-          if (typeof currentPrice !== "number" || typeof percentChange !== "number") {
-            return (
-              <div
-                key={index}
-                className="p-4 rounded-lg bg-gray-400 text-white text-center font-semibold shadow-lg"
-              >
-                <h2 className="text-xl">{stock.name}</h2>
-                <p>Invalid price or change data</p>
-              </div>
-            );
-          }
-
-          const startOfDayPrice = currentPrice / (1 + percentChange / 100);
+        {stocks.map((s, i) => {
+          const startOfDay = s.price / (1 + s.percentChange / 100);
 
           return (
             <div
-              key={index}
-              className={`p-4 rounded-lg text-white text-center font-semibold shadow-lg 
-                ${percentChange >= 0 ? 'bg-green-500' : 'bg-red-500'}`}
+              key={i}
+              className={`p-4 rounded-lg text-white text-center font-semibold shadow-lg ${
+                s.percentChange >= 0 ? 'bg-green-500' : 'bg-red-500'
+              }`}
             >
-              <h2 className="text-xl">{stock.name}</h2>
-
-              <p>Price: {currentPrice.toFixed(2)} PHP</p>
-              <p>Start of Day: {startOfDayPrice.toFixed(2)} PHP</p>
-              <p>Change: {percentChange.toFixed(2)}%</p>
+              <h2 className="text-xl">{s.name}</h2>
+              <p>Price: {s.price.toFixed(2)} PHP</p>
+              <p>Start of Day: {startOfDay.toFixed(2)} PHP</p>
+              <p>Change: {s.percentChange.toFixed(2)}%</p>
             </div>
           );
         })}
